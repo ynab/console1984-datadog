@@ -1,0 +1,21 @@
+# Local OS/editor files
+.DS_Store
+.ruby-lsp/
+
+# Ruby and Bundler artifacts
+*.gem
+*.rbc
+/.bundle/
+/vendor/bundle/
+
+# Test output and local runtime files
+/coverage/
+/log/
+/tmp/
+/spec/tmp/
+*.orig
+rerun.txt
+
+# Local environment overrides
+.env
+.env*.local
