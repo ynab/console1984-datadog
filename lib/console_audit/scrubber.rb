@@ -18,12 +18,14 @@ module ConsoleAudit
   # Only command text passes through here. The operator identity (CONSOLE_USER)
   # is an audit field, not PII to redact, and never reaches the scrubber.
   class Scrubber
+    QUOTED_BODY = /(?:\\.|[^\\\n])*?/
+
     EMAIL_PATTERN = /(?<=["'])[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}(?=["'])/
 
     # key: "value" or key: 'value'  (Ruby keyword / symbol-colon syntax)
-    SYMBOL_COLON_PATTERN = /(\b\w+)(:\s*)(["'])(.*?)\3/
+    SYMBOL_COLON_PATTERN = /(\b\w+)(:\s*)(["'])(#{QUOTED_BODY})\3/
     # :key => "value" or "key" => "value"  (hash-rocket syntax)
-    HASH_ROCKET_PATTERN = /(:|["'])(\w+)(["'])?\s*(=>\s*)(["'])(.*?)\5/
+    HASH_ROCKET_PATTERN = /(:|["'])(\w+)(["'])?(\s*)(=>\s*)(["'])(#{QUOTED_BODY})\6/
 
     def initialize(filter_parameters:)
       @filter_parameters = filter_parameters
@@ -38,9 +40,9 @@ module ConsoleAudit
       end
 
       scrubbed.gsub!(HASH_ROCKET_PATTERN) do
-        prefix, key, closing_quote, arrow, quote, _value = $1, $2, $3, $4, $5, $6
+        prefix, key, closing_quote, gap, arrow, quote = $1, $2, $3, $4, $5, $6
         if sensitive_key?(key)
-          "#{prefix}#{key}#{closing_quote} #{arrow}#{quote}[FILTERED]#{quote}"
+          "#{prefix}#{key}#{closing_quote}#{gap}#{arrow}#{quote}[FILTERED]#{quote}"
         else
           $&
         end
