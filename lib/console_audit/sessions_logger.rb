@@ -33,6 +33,7 @@ module ConsoleAudit
       @command_count = 0
       @sensitive = false
       emit(event: "session_start")
+      arm_session_end
     rescue => e
       warn("[console-audit] start_session failed (ignored): #{e.message}")
     end
@@ -91,6 +92,19 @@ module ConsoleAudit
     end
 
     private
+
+    # console1984 calls finish_session from Supervisor#stop only, and reaches it
+    # solely via exit_irb after a forbidden command was executed. A normal `exit`
+    # never closes the session, so session_end has to be armed here.
+    #
+    # Safe against both paths running: whichever fires first clears @session_id,
+    # and emit drops any later event without one.
+    def arm_session_end
+      return if @session_end_armed
+
+      @session_end_armed = true
+      at_exit { finish_session }
+    end
 
     def emit(event:, **attrs)
       # Pre-session guard: console1984 calls end_sensitive_access once while
