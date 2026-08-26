@@ -25,7 +25,7 @@ RSpec.describe ConsoleAudit::Scrubber do
 
     it "does not leak a single-quoted value with an escaped quote" do
       expect(scrubber.scrub(%q{User.create(password: 'don\'t tell')}))
-        .to eq(%q{User.create(password: '[FILTERED]')})
+        .to eq("User.create(password: '[FILTERED]')")
     end
 
     # An escaped backslash is one unit, so the quote after it really does close.

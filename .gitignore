@@ -7,6 +7,8 @@
 *.rbc
 /.bundle/
 /vendor/bundle/
+# Unlocked on purpose: each CI job resolves the gemspec's dependency range fresh.
+/Gemfile.lock
 
 # Test output and local runtime files
 /coverage/
