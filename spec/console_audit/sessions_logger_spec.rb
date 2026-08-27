@@ -120,6 +120,56 @@ RSpec.describe ConsoleAudit::SessionsLogger do
     end
   end
 
+  # console1984 reaches finish_session only through Supervisor#stop, which only
+  # exit_irb calls, which CommandExecutor only calls after a forbidden command
+  # executed. Nothing closes a session that ends with a normal `exit`, so
+  # start_session arms it. Without this, session_end is emitted for roughly no
+  # real session and command_count/duration_seconds never exist.
+  describe "closing the session at process exit" do
+    def capture_at_exit(logger)
+      captured = nil
+      allow(logger).to receive(:at_exit) { |&block| captured = block }
+      yield
+      captured
+    end
+
+    it "arms a handler that emits session_end" do
+      handler = capture_at_exit(logger) { logger.start_session("jdoe", "INV-42") }
+      logger.before_executing("Budget.count")
+
+      expect(handler).not_to be_nil
+      expect { handler.call }.to change { events.count("session_end") }.by(1)
+      expect(enqueued_records.last["command_count"]).to eq(1)
+    end
+
+    it "arms only one handler per session" do
+      handlers = []
+      allow(logger).to receive(:at_exit) { |&block| handlers << block }
+
+      logger.start_session("jdoe", "INV-42")
+      logger.start_session("jdoe", "INV-43")
+
+      expect(handlers.size).to eq(1)
+    end
+
+    it "does not emit a second session_end when console1984 already closed the session" do
+      handler = capture_at_exit(logger) { logger.start_session("jdoe", "INV-42") }
+      logger.finish_session
+
+      expect { handler.call }.not_to(change { events.count("session_end") })
+    end
+
+    # Guards the duck-type name across a console1984 upgrade: a rename would
+    # silently take out both the forbidden-command path and the at_exit above.
+    it "is the method console1984's supervisor calls when it stops a session" do
+      allow(Console1984).to receive(:session_logger).and_return(logger)
+
+      expect(logger).to receive(:finish_session)
+
+      Console1984::Supervisor.new.stop
+    end
+  end
+
   # FAIL-OPEN: with enqueuing as the only delivery path, a failed enqueue is the
   # only failure the console can hit — and it must never break the session. The
   # resulting gap is caught by the missing-session cross-check.
