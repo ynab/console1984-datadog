@@ -215,6 +215,17 @@ buildpack's own shell log — which is how a console session with no audit recor
   operator can point it at a dead Redis and keep a working production console.
   With no synchronous fallback that means no record — caught by the
   missing-session cross-check.
+- **Sandboxed consoles are refused, not audited.** `rails console --sandbox` wraps
+  the session in a transaction that is rolled back on exit, and with a
+  database-backed queue on the primary database (Solid Queue, GoodJob, Delayed
+  Job) the audit enqueue is inside it — so the rollback discards the trail along
+  with the operator's changes and the session runs entirely unrecorded
+  ([console1984#91](https://github.com/basecamp/console1984/issues/91)). Rather
+  than deliver records a second way, the gem sets Rails' own
+  `config.disable_sandbox = true` whenever auditing is enabled, so the console
+  refuses to start. Giving the queue its own database would also close this, but
+  it would make auditing depend silently on queue topology. There is no opt-out:
+  an unaudited console is the thing this gem exists to prevent.
 - **A rake task that doesn't load `:environment`** never boots Rails, so it isn't
   logged. Such a task can't touch models or the database, and the buildpack
   blocks commands other than `rails` and `rake`.
