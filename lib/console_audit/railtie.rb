@@ -27,6 +27,16 @@ module ConsoleAudit
 
       next unless cfg.enabled?
 
+      # A sandboxed console (`rails console --sandbox`) wraps the whole session
+      # in a transaction that is rolled back on exit. Records are enqueued
+      # through ActiveJob, so with a database-backed queue on the primary
+      # database — Solid Queue, GoodJob, Delayed Job — the enqueue is inside
+      # that transaction and the rollback discards the audit trail along with
+      # the operator's changes. The session then runs entirely unrecorded.
+      #
+      # So here we disable sandboxing on the host app, if the console auditing is enabled.
+      Rails.application.config.disable_sandbox = true
+
       # Pull the app's filter_parameters for PII scrubbing unless already set.
       cfg.filter_parameters = Rails.application.config.filter_parameters if cfg.filter_parameters.empty?
 
