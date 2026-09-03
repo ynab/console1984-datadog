@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require "spec_helper"
+require "json"
 require "tmpdir"
 
 # The railtie does its work in `after_initialize`, so these boot a real (if
@@ -11,7 +12,7 @@ require "tmpdir"
 # A Rails application can only be initialized once per process — engine paths
 # are frozen on boot — so each case runs in a forked child.
 RSpec.describe ConsoleAudit::Railtie do
-  # @return [Object] whatever the block returns in the child, marshalled back.
+  # @return [Object] whatever the block returns in the child, JSON round-tripped.
   def in_forked_app(enabled:)
     reader, writer = IO.pipe
 
@@ -25,7 +26,7 @@ RSpec.describe ConsoleAudit::Railtie do
         config.root = Dir.mktmpdir
       end
       app.initialize!
-      writer.write(Marshal.dump(yield(app)))
+      writer.write(JSON.generate([yield(app)]))
       writer.close
       exit!(0)
     end
@@ -35,7 +36,8 @@ RSpec.describe ConsoleAudit::Railtie do
     Process.wait(pid)
     raise "child failed to boot" if payload.empty?
 
-    Marshal.load(payload)
+    # Wrapped in an array so bare `true`/`false`/`nil` survive the round trip.
+    JSON.parse(payload).first
   end
 
   it "disables sandboxed consoles when auditing is enabled" do
