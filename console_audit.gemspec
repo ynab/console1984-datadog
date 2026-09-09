@@ -17,7 +17,17 @@ Gem::Specification.new do |spec|
   spec.license = "MIT"
   spec.required_ruby_version = ">= 3.1"
 
-  spec.files = Dir["lib/**/*", "README.md"]
+  # This gem is consumed from a git tag, never pushed to a gem server. A
+  # non-URI `allowed_push_host` makes a bare `gem push` fail before it opens a
+  # connection. It does not stop an explicit `gem push --host`.
+  spec.metadata = {
+    "allowed_push_host" => "none",
+    "source_code_uri" => spec.homepage,
+    "changelog_uri" => "#{spec.homepage}/blob/main/CHANGELOG.md",
+    "bug_tracker_uri" => "#{spec.homepage}/issues"
+  }
+
+  spec.files = Dir["lib/**/*", "README.md", "LICENSE", "CHANGELOG.md"]
   spec.require_paths = ["lib"]
 
   # console1984 is the console-hook engine; we supply the logger + gating.
