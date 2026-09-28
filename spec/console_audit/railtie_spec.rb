@@ -13,12 +13,13 @@ require "tmpdir"
 # are frozen on boot — so each case runs in a forked child.
 RSpec.describe ConsoleAudit::Railtie do
   # @return [Object] whatever the block returns in the child, JSON round-tripped.
-  def in_forked_app(enabled:)
+  def in_forked_app(enabled:, before_boot: nil)
     reader, writer = IO.pipe
 
     pid = fork do
       reader.close
       ENV["CONSOLE_AUDIT_ENABLED"] = enabled
+      before_boot&.call
       app = Class.new(Rails::Application) do
         config.eager_load = false
         config.logger = Logger.new(IO::NULL)
@@ -52,5 +53,27 @@ RSpec.describe ConsoleAudit::Railtie do
     result = in_forked_app(enabled: "false") { |app| app.config.disable_sandbox }
 
     expect(result).to be(false)
+  end
+
+  describe "non-interactive audit" do
+    # Stands in for a gem later in the Gemfile than console_audit whose
+    # after_initialize the enqueue depends on (rails_semantic_logger).
+    def boot_with_later_gem(enabled:)
+      order = []
+      before_boot = lambda do
+        ActiveSupport.on_load(:after_initialize) { order << "later_gem" }
+        ConsoleAudit::NoninteractiveAudit.define_singleton_method(:audit_current_command) { |*| order << "audit" }
+      end
+
+      in_forked_app(enabled: enabled, before_boot: before_boot) { order }
+    end
+
+    it "runs after gems loaded later than console_audit have initialized" do
+      expect(boot_with_later_gem(enabled: "true")).to eq(%w[later_gem audit])
+    end
+
+    it "does not run when auditing is disabled" do
+      expect(boot_with_later_gem(enabled: "false")).to eq(%w[later_gem])
+    end
   end
 end
