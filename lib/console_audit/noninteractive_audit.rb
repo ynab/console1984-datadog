@@ -41,7 +41,7 @@ module ConsoleAudit
       private
 
       def detect
-        if defined?(Rake) && Rake.application.top_level_tasks.any?
+        if defined?(Rake.application) && Rake.application.top_level_tasks.any?
           ["rake", "rake #{Rake.application.top_level_tasks.join(" ")}"]
         elsif rails_runner?
           ["rails-runner", ARGV.join(" ")]

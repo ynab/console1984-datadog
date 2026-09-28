@@ -83,6 +83,14 @@ RSpec.describe ConsoleAudit::NoninteractiveAudit do
       expect(detect).to eq(["rails-runner", "User.count"])
     end
 
+    it "classifies a `rails runner` invocation when Rake is only partially loaded" do
+      stub_const("Rake", Module.new)
+      ARGV.replace(["User.count"])
+      allow(described_class).to receive(:rails_runner?).and_return(true)
+
+      expect(detect).to eq(["rails-runner", "User.count"])
+    end
+
     it "returns nil for ordinary boots (web/worker/console)" do
       hide_const("Rake") if defined?(Rake)
       ARGV.replace([])
