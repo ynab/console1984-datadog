@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+## 1.0.1 - 2026-09-29
+
 - Fix `rails runner` going unaudited in apps that partially load Rake at boot
   (e.g. `require "rails/test_unit/railtie"`, which requires `rake/file_list`).
   Detection raised `NoMethodError` on `Rake.application` and failed open.
