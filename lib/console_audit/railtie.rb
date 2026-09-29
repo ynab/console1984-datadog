@@ -49,9 +49,14 @@ module ConsoleAudit
 
       # Reason from CONSOLE_REASON instead of the interactive prompt.
       require "console_audit/reason_from_env"
+    end
 
-      # Capture the non-interactive rake / rails runner paths.
-      ConsoleAudit::NoninteractiveAudit.audit_current_command(cfg)
+    # Capture the non-interactive rake / rails runner paths.
+    initializer "console_audit.noninteractive_audit" do |app|
+      app.config.after_initialize do
+        cfg = ConsoleAudit.config
+        ConsoleAudit::NoninteractiveAudit.audit_current_command(cfg) if cfg.enabled?
+      end
     end
   end
 end
